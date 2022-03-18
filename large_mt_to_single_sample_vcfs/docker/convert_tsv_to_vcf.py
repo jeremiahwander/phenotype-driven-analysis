@@ -52,7 +52,7 @@ for i, line in enumerate(f, start=2):
     if len(row["alleles"]) != 2:
         raise ValueError(f"tsv row #{i+1} contains {len(row['alleles'])} alleles: {line}")
 
-    if row["GT"] in ("0/0", "./.", "0|0", "0\\0"):
+    if row["GT"] in {"0/0", "./.", "0|0", "0\\0"}:
         continue
 
     if args.add_info_field:
