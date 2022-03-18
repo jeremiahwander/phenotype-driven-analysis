@@ -21,6 +21,7 @@ args.vcf_header = f"{root}/docker/vcf_header.txt"
 #%%
 
 # Read TSV header lines
+print(f"Parsing {args.tsv_path}")
 
 # parse sample id
 f = gzip.open(args.tsv_path, "rt")
@@ -38,11 +39,13 @@ with open(args.vcf_header, "rt") as f_header:
 vcf_header_contents = vcf_header_contents.replace("[sample_id]", sample_id)
 
 # convert TSV to VCF
-fo = open(f"{sample_id}.vcf", "wt")
+output_path = f"{sample_id}.vcf"
+fo = open(output_path, "wt")
 fo.write(vcf_header_contents)
 
 format = ["GT", "AD", "DP", "GQ", "PL"]
 
+output_line_counter = 0
 for i, line in enumerate(f, start=2):
     fields = line.strip().split("\t")
     row = dict(zip(header, fields))
@@ -54,7 +57,7 @@ for i, line in enumerate(f, start=2):
         continue
 
     row["chrom"], row["pos"] = row["locus"].split(":")
-    row["filters"] = ",".join(json.loads(row["filters"]))
+    row["filters"] = ",".join(json.loads(row["filters"])) or "PASS"
 
     if args.add_info_field:
         row["info"] = {k: v for k, v in json.loads(row["info"]).items() if v is not None and v != "nul"}
@@ -81,8 +84,10 @@ for i, line in enumerate(f, start=2):
         ":".join(genotype),
     ])) + "\n"
 
+    output_line_counter += 1
     fo.write(vcf_line)
-    # #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA12877
 
+    # #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA12877
+print(f"Wrote {output_line_counter} out of {i-1} ({100*output_line_counter/(i-1):0.1f}%) of records to {output_path} (after filtering out GT=0/0)")
 f.close()
 fo.close()

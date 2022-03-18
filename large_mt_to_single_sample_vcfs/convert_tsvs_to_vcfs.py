@@ -1,11 +1,13 @@
 """After single_sample_vcf_pipeline_for_large_mt.py is done, this script can be used to convert the TSVs to VCFs"""
 
+import gzip
 import hail as hl
+import json
 import os
 import re
 from step_pipeline import pipeline, Backend, Localize, Delocalize
 
-DOCKER_IMAGE = "weisburd/large_mt_to_single_sample_vcfs@sha256:392c600d7346b8ab65819239da7ab7657b9b101c00e283e9053397693c198aa0"
+DOCKER_IMAGE = "weisburd/large_mt_to_single_sample_vcfs@sha256:6b9a2d9396449cc19b5d2b70e986df5febb10fef0c0f923e408147eb37e3e3d3"
 
 
 def parse_args(pipeline):
@@ -15,7 +17,7 @@ def parse_args(pipeline):
         pipeline (step_pipeline._Pipeline): The step_pipeline pipeline object.
 
     Return:
-        3-tuple: list of tsv paths to process, output directory, add_info_field arg value
+        2-tuple: list of tsv paths, args
     """
 
     parser = pipeline.get_config_arg_parser()
@@ -47,28 +49,30 @@ def parse_args(pipeline):
     if not tsv_paths:
         parser.error(f" No .tsv.bgz files found at {args.tsv_path}")
 
-    if args.sample_id:
-        tsv_paths = [p for p in tsv_paths if get_sample_id(p) == args.sample_id]
-        if not tsv_paths:
-            parser.error(f"No .tsv.bgz file found for sample id {args.sample_id}")
-
     if not args.output_dir:
         args.output_dir = os.path.dirname(tsv_paths[0])
 
-    return tsv_paths, args.output_dir, args.add_info_field
+    return tsv_paths, args
 
 
 def get_sample_id(tsv_path):
-    return re.sub(".tsv.bgz$", "", os.path.basename(tsv_path))
+    with hl.hadoop_open(tsv_path, "r") as f:
+        sample_id_info = json.loads(next(f).lstrip("#"))
+        return sample_id_info["s"]
 
 
 def main():
     bp = pipeline("convert_tsvs_to_vcfs", backend=Backend.HAIL_BATCH_SERVICE, config_file_path="~/.step_pipeline")
 
-    tsv_paths, output_dir, add_info_field = parse_args(bp)
+    tsv_paths, args = parse_args(bp)
 
     for tsv_path in tsv_paths:
         sample_id = get_sample_id(tsv_path)
+        if args.sample_id and args.sample_id != sample_id:
+            print(f"Skipping {tsv_path} which contains sample {sample_id}")
+            continue
+
+        print(f"Processing {sample_id} @ {tsv_path}")
         s1 = bp.new_step(
             f"convert_tsv_to_vcf: {sample_id}",
             image=DOCKER_IMAGE,
@@ -76,19 +80,20 @@ def main():
             storage=5,
             localize_by=Localize.HAIL_BATCH_GCSFUSE,
             delocalize_by=Delocalize.COPY,
-            output_dir=output_dir)
+            output_dir=args.output_dir)
 
         input_tsv = s1.input(tsv_path)
 
         s1.command("set -x")
         cmd = f"time python3 convert_tsv_to_vcf.py --vcf-header /vcf_header.txt {input_tsv}"
-        if add_info_field:
+        if args.add_info_field:
             cmd += "--add-info-field"
         s1.command(cmd)
 
-        s1.command(f"bgzip {sample_id}.vcf")
-        s1.command(f"tabix {sample_id}.vcf.gz")
+        s1.command(f"time bgzip {sample_id}.vcf")
+        s1.command(f"time tabix {sample_id}.vcf.gz")
 
+        s1.switch_gcloud_auth_to_user_account()
         s1.output(f"{sample_id}.vcf.gz")
         s1.output(f"{sample_id}.vcf.gz.tbi")
 
