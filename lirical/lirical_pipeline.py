@@ -60,11 +60,11 @@ def define_args(pipeline):
                      help="Google Storage path of Phenopacket JSON files to process. More than one path can be "
                           "specified. Also each path can optionally contain wildcards (*).")
 
-    grp.add_argument("-s", "--sample-id", help="Optionally, process only this one sample id. Useful for testing.")
+    grp.add_argument("-s", "--sample-id", help="Optionally, process only this sample id. Useful for testing.")
 
 
 def parse_args(pipeline):
-    """Define command-line args for the pipeline.
+    """Define and parse command-line args.
 
     Args:
         pipeline (step_pipeline._Pipeline): The step_pipeline pipeline object.
@@ -74,6 +74,7 @@ def parse_args(pipeline):
          pandas.DataFrame: DataFrame with 1 row per phenopacket and columns: "sample_id", "phenopacket_path", "vcf_path"
     """
 
+    define_args(pipeline)
     args = pipeline.parse_args()
 
     parser = pipeline.get_config_arg_parser()
@@ -153,8 +154,6 @@ def parse_args(pipeline):
 
 def main():
     bp = pipeline("LIRICAL", backend=Backend.HAIL_BATCH_SERVICE, config_file_path="~/.step_pipeline")
-
-    define_args(bp)
     args, metadata_df = parse_args(bp)
 
     for _, row in metadata_df.iterrows():

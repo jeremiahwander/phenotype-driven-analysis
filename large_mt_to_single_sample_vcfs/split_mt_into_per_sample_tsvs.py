@@ -1,5 +1,12 @@
 """To reduce the cost of converting large matrix tables (500+ samples) to single-sample VCF(s) this script first runs
 hl.experimental.export_entries_by_col(..) on Dataproc to convert the matrix table to single-sample .tsv files.
+
+This script needs to run on Dataproc. Example command:
+
+submit_to_hail_cluster bw2 single_sample_vcf_pipeline_for_large_mt.py \
+    --compute-info-field \
+    -o gs://seqr-bw/single_sample_vcfs/RDG_WGS_Broad_Internal \
+    gs://seqr-datasets/v02/GRCh38/RDG_WGS_Broad_Internal/v26/RDG_WGS_Broad_Internal.mt
 """
 
 import argparse
@@ -12,8 +19,8 @@ hl.init(idempotent=True)
 p = argparse.ArgumentParser()
 p.add_argument("-o", "--output-dir", help="Output directory. The single-sample TSVs will be written into a "
                                           "sub-directory called 'single_sample_tsvs'.")
-p.add_argument("-i", "--compute-info-field", help="Compute a VCF info field based on annotations added to "
-                                                  "matrix tables by the seqr loading pipeline.")
+p.add_argument("--compute-info-field", help="Compute a VCF info field based on annotations added to matrix tables by "
+                                            "the seqr loading pipeline.", action="store_true")
 p.add_argument("matrix_table", help="Path of matrix table to convert to single-sample VCFs")
 args = p.parse_args()
 
