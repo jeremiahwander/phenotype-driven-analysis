@@ -5,7 +5,7 @@ import os
 import re
 from step_pipeline import pipeline, Backend, Localize, Delocalize
 
-DOCKER_IMAGE = "weisburd/large_mt_to_single_sample_vcfs@sha256:9716773ee07a9dba661fdd3688ebf70b0618bff1eeb93b4e7c026944d4bcde27"
+DOCKER_IMAGE = "weisburd/large_mt_to_single_sample_vcfs@sha256:392c600d7346b8ab65819239da7ab7657b9b101c00e283e9053397693c198aa0"
 
 
 def parse_args(pipeline):

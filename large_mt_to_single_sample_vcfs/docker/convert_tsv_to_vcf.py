@@ -41,21 +41,23 @@ vcf_header_contents = vcf_header_contents.replace("[sample_id]", sample_id)
 fo = open(f"{sample_id}.vcf", "wt")
 fo.write(vcf_header_contents)
 
+format = ["GT", "AD", "DP", "GQ", "PL"]
+
 for i, line in enumerate(f, start=2):
     fields = line.strip().split("\t")
     row = dict(zip(header, fields))
-    row["chrom"], row["pos"] = row["locus"].split(":")
     row["alleles"] = json.loads(row["alleles"])
-    row["filters"] = ",".join(json.loads(row["filters"]))
-    row["info"] = {k: v for k, v in json.loads(row["info"]).items() if v is not None and v != "nul"}
-
     if len(row["alleles"]) != 2:
         raise ValueError(f"tsv row #{i+1} contains {len(row['alleles'])} alleles: {line}")
 
     if row["GT"] in {"0/0", "./.", "0|0", "0\\0"}:
         continue
 
+    row["chrom"], row["pos"] = row["locus"].split(":")
+    row["filters"] = ",".join(json.loads(row["filters"]))
+
     if args.add_info_field:
+        row["info"] = {k: v for k, v in json.loads(row["info"]).items() if v is not None and v != "nul"}
         info_field = ";".join([f"{key}={value}" for key, value in row["info"].items()])
     else:
         info_field = "."
@@ -63,7 +65,6 @@ for i, line in enumerate(f, start=2):
     ad = row["AD"] = ",".join(map(str, json.loads(row["AD"])))
     pl = row["PL"] = ",".join(map(str, json.loads(row["PL"])))
 
-    format = ["GT", "AD", "DP", "GQ", "PL"]
     genotype = [row[key] for key in format]
 
     # CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	[sample_id]
