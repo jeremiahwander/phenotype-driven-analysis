@@ -56,6 +56,9 @@ for i, line in enumerate(f, start=2):
     if row["GT"] in {"0/0", "./.", "0|0", "0\\0"}:
         continue
 
+    if row["DP"] == "NA":
+        continue
+
     row["chrom"], row["pos"] = row["locus"].split(":")
     row["filters"] = ",".join(json.loads(row["filters"])) or "PASS"
 
@@ -65,8 +68,11 @@ for i, line in enumerate(f, start=2):
     else:
         info_field = "."
 
-    ad = row["AD"] = ",".join(map(str, json.loads(row["AD"])))
-    pl = row["PL"] = ",".join(map(str, json.loads(row["PL"])))
+    row["AD"] = ",".join(map(str, json.loads(row["AD"])))
+    row["PL"] = ",".join(map(str, json.loads(row["PL"])))
+
+    if row["AD"] == "0,0":
+        continue
 
     genotype = [row[key] for key in format]
 

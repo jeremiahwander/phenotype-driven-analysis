@@ -172,7 +172,8 @@ def main():
         # the vcf's path within the container needs to match the vcf path specified in the phenopacket
         if row.vcf_path.endswith("gz"):
             unzipped_vcf_path = re.sub("(.bgz|.gz)$", "", os.path.basename(vcf_input.local_path))
-            s1.command(f"gunzip -c {vcf_input} > /{unzipped_vcf_path}")
+            # filter out ":NA:" fields to work around a bug where DP="NA" in some VCF rows.
+            s1.command(f"gunzip -c {vcf_input} | grep -v :NA: > /{unzipped_vcf_path}")
         else:
             s1.command(f"ln -s {vcf_input} /{vcf_input.filename}")
 
