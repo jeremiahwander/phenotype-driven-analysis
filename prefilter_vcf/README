@@ -1,0 +1,3 @@
+Slivar (https://github.com/brentp/slivar) is a command-line tool for filtering VCFs based on gnomAD
+allele frequencies and inheritance mode (when variant information is also available for parents).
+
