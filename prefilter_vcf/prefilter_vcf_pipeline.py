@@ -6,7 +6,7 @@ import re
 import pandas as pd
 from step_pipeline import pipeline, Backend, Localize, Delocalize
 
-DOCKER_IMAGE = "weisburd/slivar@sha256:099ddb05f395e1edabb41dd7019c307ee9c2093e9774586161e0e76dc702681a"
+DOCKER_IMAGE = "weisburd/slivar@sha256:b97f4b57dd58d0f3ef9824fc209a17665073d97a5af37129ba09b6e3605edd51"
 
 
 def parse_args(pipeline):
@@ -91,7 +91,7 @@ def main():
 
         s1.command(f"java -jar /gatk.jar FixVcfHeader -I without_NA.vcf -O fixed_header.vcf")
 
-        slivar_command = (f"/slivar expr "
+        s1.command(f"/slivar expr "
             f"--js /slivar-functions.js "
             "-g gnomad.hg38.genomes.v3.fix.zip "
             f"--info 'INFO.gnomad_popmax_af < {args.gnomad_af}' "
@@ -99,9 +99,10 @@ def main():
             f"-o {output_vcf_filename} "
         )
 
-        s1.command(slivar_command)
+        s1.command(f"tabix {output_vcf_filename}")
 
         s1.output(output_vcf_filename)
+        s1.output(f"{output_vcf_filename}.tbi")
 
     # run the pipeline
     sp.run()

@@ -24,6 +24,8 @@ RUN wget https://github.com/brentp/slivar/releases/download/v0.2.7/slivar \
     && chmod +x ./slivar \
     && wget https://raw.githubusercontent.com/brentp/slivar/master/js/slivar-functions.js
 
+RUN install_packages tabix
+
 # wget https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip
     
 # install gcloud
