@@ -6,7 +6,7 @@ import re
 import pandas as pd
 from step_pipeline import pipeline, Backend, Localize, Delocalize
 
-DOCKER_IMAGE = "weisburd/lirical@sha256:3acb48b5f7d833fd466579afceb79e55b59700982955e8a3f9ca45db382e042a"
+DOCKER_IMAGE = "weisburd/lirical@sha256:8f056f67153e4d873c27508fb9effda9c8fa0a1f2dc87777a58266fed4f8c82b"
 
 
 def define_args(pipeline):
@@ -158,8 +158,9 @@ def main():
 
     for _, row in metadata_df.iterrows():
         s1 = bp.new_step(f"LIRICAL: {row.sample_id}", image=DOCKER_IMAGE, cpu=2, storage="70Gi", memory="highmem",
-                         localize_by=Localize.COPY, delocalize_by=Delocalize.COPY)
+                         localize_by=Localize.GSUTIL_COPY, delocalize_by=Delocalize.COPY)
 
+        s1.switch_gcloud_auth_to_user_account()
         phenopacket_input = s1.input(row.phenopacket_path)
         vcf_input = s1.input(row.vcf_path)
         lirical_data_dir_input = s1.input(args.lirical_data_dir)
