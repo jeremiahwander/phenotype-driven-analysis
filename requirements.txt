@@ -2,3 +2,5 @@ configargparse
 hail
 step-pipeline
 pandas
+azure-identity
+azure-storage-blob
