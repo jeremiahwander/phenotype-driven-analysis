@@ -1,6 +1,6 @@
 ''' prefilter_vcf_batch.py 
 
-Using slivar, filter variants with a gnomAD allele frequency of greater than or equal to 0.01.
+Using slivar, filter variants with a gnomAD allele frequency of less than or equal to 0.01.
 
 '''
 
