@@ -6,6 +6,7 @@ from typing import Any, List, Tuple
 import pandas as pd
 from azure.identity import AzureCliCredential, DefaultAzureCredential
 from azure.storage.blob import BlobClient, ContainerClient
+import azure.core.exceptions
 import hail as hl
 import hailtop.batch as hb
 import configargparse
@@ -93,10 +94,24 @@ def az_storage_read(path: str, credential: Any = None) -> str:
     # TODO alternatively reformat the Hail blob path to a standard URI and access the blob that way.
     account_name, container_name, blob_name = _az_parse_blob_path(path)
     account_url = _az_account_name_to_blob_service_url(account_name)
-    return BlobClient(account_url=account_url, 
+    
+    def _contents_from_blob_client(client: BlobClient) -> str:
+        return client.download_blob().content_as_text()
+
+    try:
+        anonymous_blob_client = BlobClient(account_url=account_url, 
                       container_name=container_name, 
                       blob_name=blob_name, 
-                      credential=credential).download_blob().content_as_text()
+                      credential=None)
+        return _contents_from_blob_client(anonymous_blob_client)
+    except azure.core.exceptions.ClientAuthenticationError as ex:
+        if ex.error_code == 'NoAuthenticationInformation':
+            # container is not configured for public access. Fall back to credentialed access.
+            credentialed_blob_client = BlobClient(account_url=account_url, 
+                      container_name=container_name, 
+                      blob_name=blob_name, 
+                      credential=credential)
+            return _contents_from_blob_client(credentialed_blob_client)
 
 def az_storage_ls(path: str, credential: Any = None) -> List[str]:
     """
@@ -104,23 +119,31 @@ def az_storage_ls(path: str, credential: Any = None) -> List[str]:
     blob contained directly under that prefix. Does not search recursively.
     """
 
-    if not credential:
-        # Fallback in the case that the caller hasn't already generated a credential.
-        credential = DefaultAzureCredential()
-
     # TODO, consider using datalake gen 2 and ASFS for Hadoop file system API access.
     account_name, container_name, blob_name = _az_parse_blob_path(path)
     account_url = _az_account_name_to_blob_service_url(account_name)
-    container_client = ContainerClient(account_url=account_url, container_name=container_name, credential=credential) 
-    blob_list = container_client.list_blobs(name_starts_with=blob_name)
 
-    # Filter to only top-level blobs and return.
-    if blob_name:
-        prefix_len = len(blob_name) + 1
-    else:
-        prefix_len = 0
+    def _blob_list_from_container_client(client: ContainerClient) -> List[str]:
+        blob_list = client.list_blobs(name_starts_with=blob_name)
 
-    return [f"hail-az://{account_name}/{container_name}/{b.name}" for b in blob_list if "/" not in b.name[prefix_len:]]
+        # Filter to only top-level blobs and return.
+        if blob_name:
+            prefix_len = len(blob_name) + 1
+        else:
+            prefix_len = 0
+
+        return [f"hail-az://{account_name}/{container_name}/{b.name}" for b in blob_list if "/" not in b.name[prefix_len:]]
+
+    # This is an absolute hack to get around the fact that the Azure Python SDK doesn't readily handle operations on public access level blobs by
+    # credentialed users.
+    try:
+        anonymous_container_client = ContainerClient(account_url=account_url, container_name=container_name)
+        return _blob_list_from_container_client(anonymous_container_client)
+    except azure.core.exceptions.ClientAuthenticationError as ex:
+        if ex.error_code == 'NoAuthenticationInformation':
+            # container is not configured for public access. Fall back to credentialed access.
+            credentialed_container_client = ContainerClient(account_url=account_url, container_name=container_name, credential=credential)
+            return _blob_list_from_container_client(credentialed_container_client)
 
 def gcs_storage_read(path: str) -> str:
     with hl.hadoop_open(path, "r") as f:
