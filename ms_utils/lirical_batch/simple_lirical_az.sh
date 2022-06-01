@@ -1,2 +1,2 @@
 # Intended to be run from repo root
-python ms_utils/lirical_batch/lirical_batch.py -d "hail-az://liricaleastus/lirical/data" -e "hail-az://liricaleastus/exomiser/2109_hg38" -o "hail-az://liricalsaaus/tmp/miah/lirical_test" -m 5 --vcf "hail-az://liricaleastus/wgs-1000g/HG00096/WGSDATA_HG00096.filtered.vcf.gz" "hail-az://liricaleastus/wgs-1000g/HG00096/HG00096.phenopacket.json"
+python ms_utils/lirical_batch/lirical_batch.py -d "hail-az://liricalsaaus/lirical/data" -e "hail-az://liricalsaaus/exomiser/2109_hg38" -o "hail-az://liricalsaaus/tmp/lirical_test" -r "hail-az://liricalsaaus/tmp/hail_tmpdir" -m 5 --vcf "hail-az://liricalsaaus/wgs-1000g/HG00096/WGSDATA_HG00096.filtered.vcf.gz" "hail-az://liricalsaaus/wgs-1000g/HG00096/HG00096.phenopacket.json"

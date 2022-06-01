@@ -35,6 +35,10 @@ def define_args(pipeline) -> configargparse.ArgParser:
                      help="Cloud Storage directory where to write LIRICAL output. "
                         "Prefix google storage with gs://, Azure storage with hail-az://",
                      required=True)
+    grp.add_argument("-r", "--remote-tmp-dir",
+                     help="Cloud Storage path of the remote_tmpdir used by Hail Batch. Prefix google storage with gs://, "
+                          "Azure storage with hail-az://",
+                     default="")
 
     thresholds_grp = grp.add_mutually_exclusive_group()
     thresholds_grp.add_argument("-m", "--mindiff",
@@ -105,13 +109,12 @@ def az_storage_read(path: str, credential: Any = None) -> str:
                       credential=None)
         return _contents_from_blob_client(anonymous_blob_client)
     except azure.core.exceptions.ClientAuthenticationError as ex:
-        if ex.error_code == 'NoAuthenticationInformation':
-            # container is not configured for public access. Fall back to credentialed access.
-            credentialed_blob_client = BlobClient(account_url=account_url, 
-                      container_name=container_name, 
-                      blob_name=blob_name, 
-                      credential=credential)
-            return _contents_from_blob_client(credentialed_blob_client)
+        # container is not configured for public access. Fall back to credentialed access.
+        credentialed_blob_client = BlobClient(account_url=account_url, 
+                    container_name=container_name, 
+                    blob_name=blob_name, 
+                    credential=credential)
+        return _contents_from_blob_client(credentialed_blob_client)
 
 def az_storage_ls(path: str, credential: Any = None) -> List[str]:
     """
@@ -140,10 +143,9 @@ def az_storage_ls(path: str, credential: Any = None) -> List[str]:
         anonymous_container_client = ContainerClient(account_url=account_url, container_name=container_name)
         return _blob_list_from_container_client(anonymous_container_client)
     except azure.core.exceptions.ClientAuthenticationError as ex:
-        if ex.error_code == 'NoAuthenticationInformation':
-            # container is not configured for public access. Fall back to credentialed access.
-            credentialed_container_client = ContainerClient(account_url=account_url, container_name=container_name, credential=credential)
-            return _blob_list_from_container_client(credentialed_container_client)
+        # container is not configured for public access. Fall back to credentialed access.
+        credentialed_container_client = ContainerClient(account_url=account_url, container_name=container_name, credential=credential)
+        return _blob_list_from_container_client(credentialed_container_client)
 
 def gcs_storage_read(path: str) -> str:
     with hl.hadoop_open(path, "r") as f:
@@ -263,10 +265,10 @@ def parse_args(pipeline):
     return args, metadata_df
 
 def main():
-    backend = hb.ServiceBackend(billing_project='miah-trial', remote_tmpdir='hail-az://liricalsaaus/tmp/miah')
-    b = hb.Batch(backend=backend, name="run_lirical")
-
     args, metadata_df = parse_args(None)
+
+    backend = hb.ServiceBackend(billing_project='miah-trial', remote_tmpdir=args.remote_tmp_dir)
+    b = hb.Batch(backend=backend, name="run_lirical")
 
     for _, row in metadata_df.iterrows():
         j = b.new_job(name=f"Running lirical on {row.sample_id}")
@@ -318,7 +320,7 @@ def main():
         b.write_output(j.lirical_html, os.path.join(args.output_dir, row.sample_id, f"{phenopacket_input_prefix}.html"))
         b.write_output(j.lirical_tsv, os.path.join(args.output_dir, row.sample_id, f"{phenopacket_input_prefix}.tsv"))
 
-    b.run()
+    b.run(wait=False)
 
 if __name__ == "__main__":
     main()
